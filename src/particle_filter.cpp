@@ -1,8 +1,8 @@
 /*
  * particle_filter.cpp
  *
- *  Created on: Dec 12, 2016
- *      Author: Tiffany Huang
+ *  Created on: April 11, 2017
+ *      Author: Jason Scott
  */
 
 #include <random>
@@ -18,6 +18,26 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
+	default_random_engine gen;
+	normal_distribution<double> x_dist(x, std[0]);
+	normal_distribution<double> y_dist(x, std[1]);
+	normal_distribution<double> theta_dist(x, std[2]);
+
+	num_particles = 100;
+
+	for (int i=0; i<num_particles; i++) {
+		Particle p = {
+			0,					//id
+			x_dist(gen),		//x
+			y_dist(gen), 		//y
+			theta_dist(gen), 	//theta
+			1 					//weight
+		};
+
+		particals.push_back(p);
+	}
+
+	is_initialized = true;
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
@@ -26,6 +46,23 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 
+	default_random_engine gen;
+	normal_distribution<double> x_noise_dist(x, std_pos[0]);
+	normal_distribution<double> y_noise_dist(x, std_pos[1]);
+	normal_distribution<double> theta_noise_dist(x, std_pos[2]);
+
+	for (int i=0; i<num_particles; i++) {
+		Particle p = particles[i];
+
+		// predict next position of particle with bicycle motion equations:
+		// x_f = x_0 + v / yaw_rate * [sin(θ_0 + yaw_rate*dt) - sin(θ_0)]
+		// y_f = y_0 + v / yaw_rate * [cos(θ_0) - cos(θ_0 + yaw_rate*dt)]
+		// θ_f = θ_0 + yaw_rate * dt
+
+		p.x += velocity / yaw_rate * (sin(p.theta + yaw_rate*delta_t) - sin(p.theta)) + x_noise_dist(gen);
+		p.y += velocity / yaw_rate * (cos(p.theta) - cos(p.theta + yaw_rate*delta_t)) + y_noise_dist(gen);
+		p.theta += yaw_rate*delta_t + theta_noise_dist(gen);
+	}
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
