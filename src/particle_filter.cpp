@@ -81,6 +81,15 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
 
+	// Applying a rotation followed by a translation to change coordinate systems from the map that the
+	// observations are given in to the particles
+	//
+	// Because our maps y-axis points down we have switch the signs below:
+	// x: -xcosθ + ysinθ + x_t
+	// y: -xsinθ - ycosθ + y_t
+	// See http://planning.cs.uiuc.edu/node99.html for reference.
+
+
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -96,6 +105,33 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   3.33. Note that you'll need to switch the minus sign in that equation to a plus to account 
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
+
+	// For each particle go through all the map landmarks
+
+	for (int i=0; i<num_particles; i++) {
+		Particle &p = particles[i];
+
+		// transform map_landmarks to p's coordinate system
+		vector<LandmarkObs> transformed_landmarks;
+
+		for (int j=0; j<map_landmarks.landmark_list.size(); j++) {
+			Map::single_landmark_s landmark = map_landmarks.landmark_list[j];
+
+			LandmarkObs transformed_landmark;
+			transformed_landmark.id = landmark.id_i;
+
+			double cos_theta = cos(p.theta - M_PI / 2);
+			double sin_theta = sin(p.theta - M_PI / 2);
+
+			float x_distance = landmark.x_f - p.x;
+			float y_distance = landmark.y_f - p.y;
+
+			transformed_landmark.x = -(x_distance) * sin_theta + (y_distance) * cos_theta;
+			transformed_landmark.y = -(x_distance) * cos_theta - (y_distance) * sin_theta;
+
+			transformed_landmarks.push_back(transformed_landmark);
+		}
+	}
 }
 
 void ParticleFilter::resample() {
