@@ -12,6 +12,8 @@
 
 #include "particle_filter.h"
 
+using namespace std;
+
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
@@ -34,7 +36,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 			1 					//weight
 		};
 
-		particals.push_back(p);
+		particles.push_back(p);
 	}
 
 	is_initialized = true;
@@ -47,18 +49,26 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 
 	default_random_engine gen;
-	normal_distribution<double> x_noise_dist(x, std_pos[0]);
-	normal_distribution<double> y_noise_dist(x, std_pos[1]);
-	normal_distribution<double> theta_noise_dist(x, std_pos[2]);
+	normal_distribution<double> x_noise_dist(0, std_pos[0]);
+	normal_distribution<double> y_noise_dist(0, std_pos[1]);
+	normal_distribution<double> theta_noise_dist(0, std_pos[2]);
 
-	for (int i=0; i<num_particles; i++) {
-		Particle p = particles[i];
+	// for (int i=0; i<num_particles; i++) {
+	// 	Particle p = particles[i];
 
-		// predict next position of particle with bicycle motion equations:
-		// x_f = x_0 + v / yaw_rate * [sin(θ_0 + yaw_rate*dt) - sin(θ_0)]
-		// y_f = y_0 + v / yaw_rate * [cos(θ_0) - cos(θ_0 + yaw_rate*dt)]
-		// θ_f = θ_0 + yaw_rate * dt
+	// 	// predict next position of particle with bicycle motion equations:
+	// 	// x_f = x_0 + v / yaw_rate * [sin(θ_0 + yaw_rate*dt) - sin(θ_0)]
+	// 	// y_f = y_0 + v / yaw_rate * [cos(θ_0) - cos(θ_0 + yaw_rate*dt)]
+	// 	// θ_f = θ_0 + yaw_rate * dt
 
+	// 	p.x += velocity / yaw_rate * (sin(p.theta + yaw_rate*delta_t) - sin(p.theta)) + x_noise_dist(gen);
+	// 	p.y += velocity / yaw_rate * (cos(p.theta) - cos(p.theta + yaw_rate*delta_t)) + y_noise_dist(gen);
+	// 	p.theta += yaw_rate*delta_t + theta_noise_dist(gen);
+
+	// 	particles[i] = p;
+	// }
+
+	for (auto & p: particles) {
 		p.x += velocity / yaw_rate * (sin(p.theta + yaw_rate*delta_t) - sin(p.theta)) + x_noise_dist(gen);
 		p.y += velocity / yaw_rate * (cos(p.theta) - cos(p.theta + yaw_rate*delta_t)) + y_noise_dist(gen);
 		p.theta += yaw_rate*delta_t + theta_noise_dist(gen);
