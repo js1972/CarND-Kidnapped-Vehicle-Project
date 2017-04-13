@@ -27,22 +27,43 @@ class ParticleFilter {
 	// Number of particles to draw
 	int num_particles; 
 	
-	
-	
 	// Flag, if filter is initialized
 	bool is_initialized;
 	
 	// Vector of weights of all particles
 	std::vector<double> weights;
 	
+	bool debug_particles_written;
+	int debug_iteration;
+
 public:
 	
+	/*
+ 	* Write out a debug file with the current particle state.
+ 	*/
+	void debug_output_particles(std::vector<Particle> &particles) {
+		if (!debug_particles_written) {
+			std::ofstream out_file("debug_particles_output.txt", std::ofstream::out);
+			if (!out_file) {
+				std::cout << "****** ERROR WRITING DEBUG FILE ******" << std::endl;
+			}
+			for (auto &p: particles) {
+				out_file << p.x << "\t" << p.y << "\t" << p.theta << "\t" << p.weight << "\n";
+			}
+			if (out_file.is_open()) {
+				out_file.close();
+			}
+		}
+
+		debug_particles_written = true;
+	};
+
 	// Set of current particles
 	std::vector<Particle> particles;
 
 	// Constructor
 	// @param M Number of particles
-	ParticleFilter() : num_particles(0), is_initialized(false) {}
+	ParticleFilter() : num_particles(0), is_initialized(false), debug_particles_written(false), debug_iteration(0) {}
 
 	// Destructor
 	~ParticleFilter() {}

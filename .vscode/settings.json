@@ -9,6 +9,16 @@
         "typeinfo": "cpp",
         "cmath": "cpp",
         "random": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "__split_buffer": "cpp",
+        "string": "cpp",
+        "vector": "cpp",
+        "__bit_reference": "cpp",
+        "iterator": "cpp",
+        "__locale": "cpp",
+        "iosfwd": "cpp",
+        "iostream": "cpp",
+        "bitset": "cpp",
+        "utility": "cpp"
     }
 }

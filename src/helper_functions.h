@@ -44,6 +44,14 @@ struct LandmarkObs {
 };
 
 /*
+ * Compare the euclidean distance from the origin to a Landmark Observation
+ * to allow sorting of Landmark Observations.
+ */
+inline bool compare_distance(const LandmarkObs &a, const LandmarkObs &b) {
+	return (sqrt(a.x * a.x + a.y * a.y) < sqrt(b.x * b.x + b.y * b.y));
+}
+
+/*
  * Computes the Euclidean distance between two 2D points.
  * @param (x1,y1) x and y coordinates of first point
  * @param (x2,y2) x and y coordinates of second point

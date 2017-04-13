@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <iostream>
 #include <numeric>
+#include <time.h>
 
 #include "particle_filter.h"
 
@@ -26,6 +27,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	normal_distribution<double> theta_dist(x, std[2]);
 
 	num_particles = 100;
+	weights.resize(num_particles);
 
 	for (int i=0; i<num_particles; i++) {
 		Particle p = {
@@ -68,10 +70,19 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// 	particles[i] = p;
 	// }
 
-	for (auto & p: particles) {
+	// *** STILL NEED TO HANDLE WHEN YAW_RATE IS ZERO HERE ***
+
+	for (auto &p: particles) {
 		p.x += velocity / yaw_rate * (sin(p.theta + yaw_rate*delta_t) - sin(p.theta)) + x_noise_dist(gen);
 		p.y += velocity / yaw_rate * (cos(p.theta) - cos(p.theta + yaw_rate*delta_t)) + y_noise_dist(gen);
 		p.theta += yaw_rate*delta_t + theta_noise_dist(gen);
+	}
+
+	debug_iteration += 1;
+	cout << "DEBUG ITER: " << debug_iteration << endl;
+	if (debug_iteration == 100) {
+		cout << "Output particles at step 100 for debug" << endl;
+		debug_output_particles(particles);
 	}
 }
 
@@ -89,7 +100,6 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	// y: -xsinθ - ycosθ + y_t
 	// See http://planning.cs.uiuc.edu/node99.html for reference.
 
-
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -106,31 +116,80 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
 
-	// For each particle go through all the map landmarks
+	// For each particle go through all the map landmarks and perform a rotational and
+	// translational conversion to the particles viewpoint (coords).
 
 	for (int i=0; i<num_particles; i++) {
 		Particle &p = particles[i];
 
-		// transform map_landmarks to p's coordinate system
-		vector<LandmarkObs> transformed_landmarks;
-
+		// transform map_landmarks to particle space - place particle at the origin
+		// pointing toward the positive y-axis.
+		vector<LandmarkObs> landmarks_in_particle_space;
 		for (int j=0; j<map_landmarks.landmark_list.size(); j++) {
-			Map::single_landmark_s landmark = map_landmarks.landmark_list[j];
+			Map::single_landmark_s map_single_landmark = map_landmarks.landmark_list[j];
 
-			LandmarkObs transformed_landmark;
-			transformed_landmark.id = landmark.id_i;
+			LandmarkObs particle_space_landmark;
+			particle_space_landmark.id = map_single_landmark.id_i;
 
-			double cos_theta = cos(p.theta - M_PI / 2);
-			double sin_theta = sin(p.theta - M_PI / 2);
+			// re-point by 90 degrees not sure if this is necessary - need to plot this stuff???
+			double new_theta = p.theta - M_PI / 2;
 
-			float x_distance = landmark.x_f - p.x;
-			float y_distance = landmark.y_f - p.y;
+			float x_distance = map_single_landmark.x_f - p.x;
+			float y_distance = map_single_landmark.y_f - p.y;
 
-			transformed_landmark.x = -(x_distance) * sin_theta + (y_distance) * cos_theta;
-			transformed_landmark.y = -(x_distance) * cos_theta - (y_distance) * sin_theta;
+			particle_space_landmark.x = -(x_distance) * sin(new_theta) + (y_distance) * cos(new_theta);
+			particle_space_landmark.y = -(x_distance) * cos(new_theta) - (y_distance) * sin(new_theta);
 
-			transformed_landmarks.push_back(transformed_landmark);
+			landmarks_in_particle_space.push_back(particle_space_landmark);
 		}
+
+		// Sort the particle-space landmarks - this will place the landmarks closest
+		// to the origin.
+		// The observations are already sorted. Should we sort them anyway???
+		// Allow the LandmarkObs to be sorted by the euclidean distance from the origin.
+
+		// Perform the data association step
+		vector<LandmarkObs> associated_landmarks;
+		sort(landmarks_in_particle_space.begin(), landmarks_in_particle_space.end(), compare_distance);
+		for (auto &lm: landmarks_in_particle_space) {
+			double range = dist(lm.x, lm.y, 0, 0);
+			if (range <= sensor_range) {
+				associated_landmarks.push_back(lm);
+			}
+		}
+
+		LandmarkObs associated_landmark;
+		if (associated_landmarks.size() > 0) {
+			sort(associated_landmarks.begin(), associated_landmarks.end(), compare_distance);
+			associated_landmark = associated_landmarks[0];
+		}
+
+		//dataAssociation(landmarks_in_particle_space, observations);
+
+		// Update the particles weights using a bivariate  gaussian distribution
+
+		double posterior_observation = 1.0;
+
+		for (int j=0; j<observations.size(); j++) {
+			LandmarkObs observation = observations[j];
+
+			// bi-variate Gaussian distribution with correlation (ρ) as zero
+			double sigma_x = std_landmark[0];
+			double sigma_y = std_landmark[1];
+			double x_0 = observation.x;
+			double y_0 = observation.y;
+			double x = associated_landmark.x;
+			double y = associated_landmark.y;
+
+			double x_part = (x - x_0)*(x - x_0) / (sigma_x*sigma_x);
+			double y_part = (y - y_0)*(y - y_0) / (sigma_y*sigma_y);
+			double first_term = 1 / (2*M_PI*sigma_x*sigma_y*sqrt(1));
+
+			posterior_observation *= first_term * exp(-1/2 * (x_part + y_part));
+		}
+
+		p.weight = posterior_observation;
+		weights[i] = posterior_observation;
 	}
 }
 
@@ -139,6 +198,35 @@ void ParticleFilter::resample() {
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
+	// C++ implementation of Sebastions python wheel-resampling logic - Particle Filters Lesson 20.
+
+	// max element returns an iterator - deref with *
+	// -> http://stackoverflow.com/questions/10158756/using-stdmax-element-on-a-vectordouble
+	double max_weight = *max_element(begin(weights), end(weights));
+	//srand(time(NULL)); //seed
+	//int index = rand() % num_particles; // not a true uniform dist?!?
+
+	// get random index
+	default_random_engine gen;
+	uniform_int_distribution<int> uni(0, num_particles);
+	int index = uni(gen);
+
+	uniform_real_distribution<double> uniform_dist(0, 2 * max_weight);
+
+	double beta = 0.0;
+	vector<Particle> resampled_particles;
+
+	for (int i=0; i<num_particles; i++) {
+		beta += uniform_dist(gen);
+		while (beta > weights[index]) {
+			beta -= weights[index];
+			index = (index + 1) % num_particles;
+		}
+
+		resampled_particles.push_back(particles[index]);
+	}
+
+	particles = resampled_particles;
 }
 
 void ParticleFilter::write(std::string filename) {
