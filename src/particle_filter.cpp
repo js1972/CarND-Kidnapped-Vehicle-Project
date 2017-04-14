@@ -205,7 +205,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			// nearest neighbor observation to the predicted landmark
 			LandmarkObs predicted_measurement = predicted_lookup[measurement.id]; // id points to landmark
 			//double weight = multiVariateGaussianWeight(predicted_measurement, measurement, measurementCovar);
-			double weight = bivariate_normal(predicted_measurement, measurement, std_landmark[0], std_landmark[1]);
+			double weight = bivariate_gaussian(predicted_measurement, measurement, std_landmark[0], std_landmark[1]);
 			if (first_measurement) {
 				weight_product = weight;
 				first_measurement = false;

@@ -62,7 +62,7 @@ inline bool compare_distance(const LandmarkObs &a, const LandmarkObs &b) {
 // 	return exp(c1)/sqrt(c3);
 // }
 
-inline double bivariate_normal(LandmarkObs predicted_measurement, LandmarkObs measurement, double sigma_x, double sigma_y) {
+inline double bivariate_gaussian(LandmarkObs predicted_measurement, LandmarkObs measurement, double sigma_x, double sigma_y) {
 	double x_0 = predicted_measurement.x;
 	double y_0 = predicted_measurement.y;
 	double x = measurement.x;
