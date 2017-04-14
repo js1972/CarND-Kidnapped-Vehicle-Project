@@ -11,3 +11,5 @@ src/solutions
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+debug_particles_output.txt
