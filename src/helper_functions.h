@@ -51,6 +51,30 @@ inline bool compare_distance(const LandmarkObs &a, const LandmarkObs &b) {
 	return (sqrt(a.x * a.x + a.y * a.y) < sqrt(b.x * b.x + b.y * b.y));
 }
 
+// double multiVariateGaussianWeight(LandmarkObs predicted_measurement, LandmarkObs measurement, const MatrixXd& measurementCovar) {
+// 	VectorXd x, mu;
+// 	x << measurement.x, measurement.y;
+// 	mu << predicted_measurement.x, predicted_measurement.y;
+
+// 	double c1=-0.5*(x-mu).transpose()*measurementCovar.inverse()*(x-mu);
+// 	MatrixXd c2=2*M_PI*measurementCovar;
+// 	double c3= c2.determinant();
+// 	return exp(c1)/sqrt(c3);
+// }
+
+inline double bivariate_normal(LandmarkObs predicted_measurement, LandmarkObs measurement, double sigma_x, double sigma_y) {
+	double x_0 = predicted_measurement.x;
+	double y_0 = predicted_measurement.y;
+	double x = measurement.x;
+	double y = measurement.y;
+
+	double x_part = (x - x_0)*(x - x_0) / (sigma_x*sigma_x);
+	double y_part = (y - y_0)*(y - y_0) / (sigma_y*sigma_y);
+	double first_term = 1 / (2*M_PI*sigma_x*sigma_y*sqrt(1));
+
+	return first_term * exp(-1/2 * (x_part + y_part));
+}
+
 /*
  * Computes the Euclidean distance between two 2D points.
  * @param (x1,y1) x and y coordinates of first point
