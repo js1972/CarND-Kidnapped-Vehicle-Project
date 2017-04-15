@@ -33,13 +33,12 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
 	for (int i=0; i<num_particles; i++) {
 		Particle p = {
-			0,					//id
+			i,					//id
 			x_dist(gen),		//x
 			y_dist(gen), 		//y
 			theta_dist(gen), 	//theta
-			1 					//weight
+			1.0					//weight
 		};
-
 		particles.push_back(p);
 	}
 
@@ -57,27 +56,16 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	normal_distribution<double> y_noise_dist(0, std_pos[1]);
 	normal_distribution<double> theta_noise_dist(0, std_pos[2]);
 
-	// for (int i=0; i<num_particles; i++) {
-	// 	Particle p = particles[i];
-
-	// 	// predict next position of particle with bicycle motion equations:
-	// 	// x_f = x_0 + v / yaw_rate * [sin(θ_0 + yaw_rate*dt) - sin(θ_0)]
-	// 	// y_f = y_0 + v / yaw_rate * [cos(θ_0) - cos(θ_0 + yaw_rate*dt)]
-	// 	// θ_f = θ_0 + yaw_rate * dt
-
-	// 	p.x += velocity / yaw_rate * (sin(p.theta + yaw_rate*delta_t) - sin(p.theta)) + x_noise_dist(gen);
-	// 	p.y += velocity / yaw_rate * (cos(p.theta) - cos(p.theta + yaw_rate*delta_t)) + y_noise_dist(gen);
-	// 	p.theta += yaw_rate*delta_t + theta_noise_dist(gen);
-
-	// 	particles[i] = p;
-	// }
-
-	// *** STILL NEED TO HANDLE WHEN YAW_RATE IS ZERO HERE ***
-
 	for (auto &p: particles) {
-		p.x += velocity / yaw_rate * (sin(p.theta + yaw_rate*delta_t) - sin(p.theta)) + x_noise_dist(gen);
-		p.y += velocity / yaw_rate * (cos(p.theta) - cos(p.theta + yaw_rate*delta_t)) + y_noise_dist(gen);
-		p.theta += yaw_rate*delta_t + theta_noise_dist(gen);
+        if (yaw_rate == 0) {
+            p.x += p.x + velocity*delta_t*cos(p.theta);
+            p.y += p.y + velocity*delta_t*sin(p.theta);
+            p.theta = p.theta;
+        } else {
+		    p.x += velocity / yaw_rate * (sin(p.theta + yaw_rate*delta_t) - sin(p.theta)) + x_noise_dist(gen);
+		    p.y += velocity / yaw_rate * (cos(p.theta) - cos(p.theta + yaw_rate*delta_t)) + y_noise_dist(gen);
+		    p.theta += yaw_rate*delta_t + theta_noise_dist(gen);
+        }
 	}
 
 	debug_iteration += 1;
@@ -103,49 +91,79 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	// See http://planning.cs.uiuc.edu/node99.html for reference.
 
 	// find nearest predicted landmark thats not been assigned
-	for (auto prediction : predicted) {
 
-		// calculate distance for the observation to all predicted
-		double dist_prev;
-		LandmarkObs *closest_observation;
-		bool first_observation = true;
 
-		for (auto &observation : observations) {
+    if (observations.size()>0) {
+        //for (int i = 0; i < observations.size(); i++) {
+        for (auto &o : observations) {
+            double xdist = (o.x - predicted[0].x);
+            double ydist = (o.y - predicted[0].y);
+            int min_dist_id = predicted[0].id;
+            double min_dist = sqrt(xdist*xdist+ydist*ydist);
+            double dist = 0.0;
 
-			// if this observation has already been matched - continue to the next
-			if (observation.id > 0)
-				continue;
+            for (int j = 1; j<predicted.size(); j++) {
+                xdist = (o.x - predicted[j].x);
+                ydist = (o.y - predicted[j].y);
+                dist = sqrt(xdist*xdist+ydist*ydist);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    min_dist_id = predicted[j].id;
+                }
+            }
 
-			double d = dist(observation.x, observation.y, prediction.x, prediction.y);
-			if (first_observation) {
+        o.id = min_dist_id;
+        }
+    }
 
-				// first time through so just say this is the closest
-				dist_prev = d;
-				observation.id = prediction.id;
-				closest_observation = &observation;
-				first_observation = false;
-				continue;
-			}
 
-			// found a closer observation to the predicted landmark
-			if (d < dist_prev) {
-				// reassign this predicted landmark id to the current
-				closest_observation->id = -1;
-				observation.id = prediction.id;
 
-				// save current as closest
-				dist_prev = d;
-				closest_observation = &observation;
-			}
-		}
 
-	}  // end for range over observations
 
-	// remove unmatched observations
-	observations.erase(
-		std::remove_if(observations.begin(), observations.end(),
-						[](const LandmarkObs lo) {return lo.id < 1;}),
-		observations.end());
+
+	// for (auto prediction : predicted) {
+
+	// 	// calculate distance for the observation to all predicted
+	// 	double dist_prev;
+	// 	LandmarkObs *closest_observation;
+	// 	bool first_observation = true;
+
+	// 	for (auto &observation : observations) {
+
+	// 		// if this observation has already been matched - continue to the next
+	// 		if (observation.id > 0)
+	// 			continue;
+
+	// 		double d = dist(observation.x, observation.y, prediction.x, prediction.y);
+	// 		if (first_observation) {
+
+	// 			// first time through so just say this is the closest
+	// 			dist_prev = d;
+	// 			observation.id = prediction.id;
+	// 			closest_observation = &observation;
+	// 			first_observation = false;
+	// 			continue;
+	// 		}
+
+	// 		// found a closer observation to the predicted landmark
+	// 		if (d < dist_prev) {
+	// 			// reassign this predicted landmark id to the current
+	// 			closest_observation->id = -1;
+	// 			observation.id = prediction.id;
+
+	// 			// save current as closest
+	// 			dist_prev = d;
+	// 			closest_observation = &observation;
+	// 		}
+	// 	}
+
+	// }  // end for range over observations
+
+	// // remove unmatched observations
+	// observations.erase(
+	// 	std::remove_if(observations.begin(), observations.end(),
+	// 					[](const LandmarkObs lo) {return lo.id < 1;}),
+	// 	observations.end());
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -162,58 +180,105 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
 
-	// for each particle
-	for (auto &p : particles) {
-		// convert observations to map space http://planning.cs.uiuc.edu/node99.html
-		vector<LandmarkObs> observations_map(observations);
-		for (auto &o : observations_map) {
-			o.x = o.x * cos(p.theta) - o.y * sin(p.theta) + p.x;
-			o.y = o.y * sin(p.theta) + o.y * cos(p.theta) - p.y;
-		}
+    for (int i = 0; i<num_particles; i++) {
+        std::vector<LandmarkObs> transfered_map_landmarks;
 
-		// predict landmarks within sensor range of this particle
-		vector<LandmarkObs> predicted;
+        Particle tPart = particles[i];
+        double px = tPart.x;
+        double py = tPart.y;
+        double ptheta = tPart.theta;
 
-		LandmarkObs lo;
-		for (auto landmark : map_landmarks.landmark_list) {
-			if (dist(p.x, p.y, landmark.x_f, landmark.y_f) < sensor_range) {
-				lo = {landmark.id_i, landmark.x_f, landmark.y_f};
-				predicted.push_back(lo);
-			}
-		}
+        for (int j = 0; j<map_landmarks.landmark_list.size(); j++) {
+            Map::single_landmark_s temp_landmark_input = map_landmarks.landmark_list[j];
+            LandmarkObs temp_landmark_output;
+            temp_landmark_output.id = temp_landmark_input.id_i;
+            double sin_ptheta = sin(ptheta - M_PI/2); // angle change according to README
+            double cos_ptheta = cos(ptheta - M_PI/2); // angle change according to README
+            double delta_x = temp_landmark_input.x_f - px;
+            double delta_y = temp_landmark_input.y_f - py;
+            temp_landmark_output.x = -delta_x*sin_ptheta + delta_y*cos_ptheta;
+            temp_landmark_output.y = -delta_x*cos_ptheta - delta_y*sin_ptheta;
+            transfered_map_landmarks.push_back(temp_landmark_output);
+        }
 
-		// find nearest neighbor - updates observations map with landmark id
-		dataAssociation(predicted, observations_map);
+        sort(transfered_map_landmarks.begin(), transfered_map_landmarks.end());
 
-		// predicted landmark lookup
-		map<int, LandmarkObs> predicted_lookup;
-		for (auto prediction: predicted) {
-			if (prediction.id > 0) {
-				predicted_lookup[prediction.id]=prediction;
-			}
-		}
+//    ParticleFilter::dataAssociation(transfered_map_landmarks, observations);
 
-		// initialise measurement covariance matrix
-		// MatrixXd measurementCovar;
-		// measurementCovar << std_landmark[0], 0,
-        // 	                0, std_landmark[1];
+        long double weight = 1.0;
+        for(int k = 0; k < observations.size(); k++) {
+            double obs_x = observations[k].x;
+            double obs_y = observations[k].y;
+            double landmark_x = transfered_map_landmarks[k].x;
+            double landmark_y = transfered_map_landmarks[k].y;
 
-		// calculate how likely a measurement should be
-		double weight_product;
-		bool first_measurement = true;
-		for (auto measurement : observations_map) {
-			// nearest neighbor observation to the predicted landmark
-			LandmarkObs predicted_measurement = predicted_lookup[measurement.id]; // id points to landmark
-			//double weight = multiVariateGaussianWeight(predicted_measurement, measurement, measurementCovar);
-			double weight = bivariate_gaussian(predicted_measurement, measurement, std_landmark[0], std_landmark[1]);
-			if (first_measurement) {
-				weight_product = weight;
-				first_measurement = false;
-			} else {
-				weight_product *= weight;
-			}
-		}
-	}
+            long double denomin = 1.0/(2.0 * M_PI * std_landmark[0] * std_landmark[1]);
+            long double x_nom = ((landmark_x-obs_x) * (landmark_x-obs_x)) / (std_landmark[0] * std_landmark[0]);
+            long double y_nom = ((landmark_y-obs_y) * (landmark_y-obs_y)) / (std_landmark[1] * std_landmark[1]);
+            long double expon = exp(-0.5*(x_nom+y_nom));
+            long double meas_likelyhood = denomin * expon;
+
+            weight *= meas_likelyhood;
+        }
+
+        particles[i].weight = weight;
+        weights[i] = weight;
+    }
+
+
+
+	// // for each particle
+	// for (auto &p : particles) {
+	// 	// convert observations to map space http://planning.cs.uiuc.edu/node99.html
+	// 	vector<LandmarkObs> observations_map(observations);
+	// 	for (auto &o : observations_map) {
+	// 		o.x = o.x * cos(p.theta) - o.y * sin(p.theta) + p.x;
+	// 		o.y = o.y * sin(p.theta) + o.y * cos(p.theta) - p.y;
+	// 	}
+
+	// 	// predict landmarks within sensor range of this particle
+	// 	vector<LandmarkObs> predicted;
+
+	// 	LandmarkObs lo;
+	// 	for (auto landmark : map_landmarks.landmark_list) {
+	// 		if (dist(p.x, p.y, landmark.x_f, landmark.y_f) < sensor_range) {
+	// 			lo = {landmark.id_i, landmark.x_f, landmark.y_f};
+	// 			predicted.push_back(lo);
+	// 		}
+	// 	}
+
+	// 	// find nearest neighbor - updates observations map with landmark id
+	// 	dataAssociation(predicted, observations_map);
+
+	// 	// predicted landmark lookup
+	// 	map<int, LandmarkObs> predicted_lookup;
+	// 	for (auto prediction: predicted) {
+	// 		if (prediction.id > 0) {
+	// 			predicted_lookup[prediction.id]=prediction;
+	// 		}
+	// 	}
+
+	// 	// initialise measurement covariance matrix
+	// 	// MatrixXd measurementCovar;
+	// 	// measurementCovar << std_landmark[0], 0,
+    //     // 	                0, std_landmark[1];
+
+	// 	// calculate how likely a measurement should be
+	// 	double weight_product;
+	// 	bool first_measurement = true;
+	// 	for (auto measurement : observations_map) {
+	// 		// nearest neighbor observation to the predicted landmark
+	// 		LandmarkObs predicted_measurement = predicted_lookup[measurement.id]; // id points to landmark
+	// 		//double weight = multiVariateGaussianWeight(predicted_measurement, measurement, measurementCovar);
+	// 		double weight = bivariate_gaussian(predicted_measurement, measurement, std_landmark[0], std_landmark[1]);
+	// 		if (first_measurement) {
+	// 			weight_product = weight;
+	// 			first_measurement = false;
+	// 		} else {
+	// 			weight_product *= weight;
+	// 		}
+	// 	}
+	// }
 }
 
 void ParticleFilter::resample() {
