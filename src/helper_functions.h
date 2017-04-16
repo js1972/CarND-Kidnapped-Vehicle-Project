@@ -44,35 +44,22 @@ struct LandmarkObs {
 };
 
 /*
- * Compare the euclidean distance from the origin to a Landmark Observation
- * to allow sorting of Landmark Observations.
+ * Calculate a bivariate gaussian distribution over the closest landmarl
+ * and the given observation.
+ * @param (lm) Closest landmark
+ * @param (x, y) x and y coordinates of the observation
+ * @param (std_landmark[]) x and y standard deviations in the observation
  */
-inline bool compare_distance(const LandmarkObs &a, const LandmarkObs &b) {
-	return (sqrt(a.x * a.x + a.y * a.y) < sqrt(b.x * b.x + b.y * b.y));
-}
+inline double bivariate_gaussian(Map::single_landmark_s lm, double x, double y, double std_landmark[]) {
+	double map_x = lm.x_f;
+	double map_y = lm.y_f;
+	double x_range = map_x - x;
+	double y_range = map_y - y;
+	double std_x = std_landmark[0];
+	double std_y = std_landmark[1];
 
-// double multiVariateGaussianWeight(LandmarkObs predicted_measurement, LandmarkObs measurement, const MatrixXd& measurementCovar) {
-// 	VectorXd x, mu;
-// 	x << measurement.x, measurement.y;
-// 	mu << predicted_measurement.x, predicted_measurement.y;
-
-// 	double c1=-0.5*(x-mu).transpose()*measurementCovar.inverse()*(x-mu);
-// 	MatrixXd c2=2*M_PI*measurementCovar;
-// 	double c3= c2.determinant();
-// 	return exp(c1)/sqrt(c3);
-// }
-
-inline double bivariate_gaussian(LandmarkObs predicted_measurement, LandmarkObs measurement, double sigma_x, double sigma_y) {
-	double x_0 = measurement.x;
-	double y_0 = measurement.y;
-	double x = predicted_measurement.x;
-	double y = predicted_measurement.y;
-
-	double x_part = (x - x_0)*(x - x_0) / (sigma_x*sigma_x);
-	double y_part = (y - y_0)*(y - y_0) / (sigma_y*sigma_y);
-	double first_term = 1 / (2*M_PI*sigma_x*sigma_y*sqrt(1));
-
-	return first_term * exp(-1/2 * (x_part + y_part));
+	double x_y_term = ((x_range*x_range)/(std_x*std_x)) + ((y_range*y_range)/(std_y*std_y));
+	return exp(-0.5*x_y_term) / (2*M_PI*std_x*std_y);
 }
 
 /*

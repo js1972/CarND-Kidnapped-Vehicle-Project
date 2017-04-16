@@ -20,6 +20,8 @@
         "iostream": "cpp",
         "bitset": "cpp",
         "utility": "cpp",
-        "memory": "cpp"
+        "memory": "cpp",
+        "chrono": "cpp",
+        "map": "cpp"
     }
 }
