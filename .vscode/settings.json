@@ -19,6 +19,9 @@
         "iosfwd": "cpp",
         "iostream": "cpp",
         "bitset": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "memory": "cpp",
+        "chrono": "cpp",
+        "map": "cpp"
     }
 }
