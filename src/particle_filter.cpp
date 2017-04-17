@@ -116,23 +116,36 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			obs_x = p.x + (obs.x * cos(p.theta)) - (obs.y * sin(p.theta));
 			obs_y = p.y + (obs.x * sin(p.theta)) + (obs.y * cos(p.theta));
 
+			// *** NEED TO ADD SENSOR RANGE IN HERE ***
+
 			// Calculate the distances from the observation to each landmark
 			vector<double> distances;
+			Map::single_landmark_s closest_lm;
+			double min_distance_obs_to_landmark = 1000.0;
+
 			for (int k=0; k<map_landmarks.landmark_list.size(); k++) {
 				Map::single_landmark_s landmark = map_landmarks.landmark_list[k];
 				double map_x = landmark.x_f;
 				double map_y = landmark.y_f;
 				double distance_obs_to_landmark = dist(obs_x, obs_y, map_x, map_y);
-				distances.push_back(distance_obs_to_landmark);
+				//distances.push_back(distance_obs_to_landmark);
+
+				if (distance_obs_to_landmark <= sensor_range) {
+					if (distance_obs_to_landmark < min_distance_obs_to_landmark) {
+						min_distance_obs_to_landmark = distance_obs_to_landmark;
+						closest_lm = landmark;
+					}
+				}
 			}
 
-			// Find the nearest neighbour - distance and index back into our landmark
-			// to find the match.
-			auto minimum_distance_iter = min_element(begin(distances), end(distances));
-			int index = distance(begin(distances), minimum_distance_iter);
-			Map::single_landmark_s closest_landmark = map_landmarks.landmark_list[index];
+			// // Find the nearest neighbour - distance and index back into our landmark
+			// // to find the match.
+			// auto minimum_distance_iter = min_element(begin(distances), end(distances));
+			// int index = distance(begin(distances), minimum_distance_iter);
+			// Map::single_landmark_s closest_landmark = map_landmarks.landmark_list[index];
 
-			weight *= bivariate_gaussian(closest_landmark, obs_x, obs_y, std_landmark);
+			//weight *= bivariate_gaussian(closest_landmark, obs_x, obs_y, std_landmark);
+			weight *= bivariate_gaussian(closest_lm, obs_x, obs_y, std_landmark);
 		}
 
 		p.weight = weight;
