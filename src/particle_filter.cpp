@@ -127,7 +127,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			}
 
 			// Find the nearest neighbour - distance and index back into our landmark
-			// the find the match.
+			// to find the match.
 			auto minimum_distance_iter = min_element(begin(distances), end(distances));
 			int index = distance(begin(distances), minimum_distance_iter);
 			Map::single_landmark_s closest_landmark = map_landmarks.landmark_list[index];
