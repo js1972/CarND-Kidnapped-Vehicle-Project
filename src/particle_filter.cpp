@@ -54,7 +54,6 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 
 	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-
 	default_random_engine gen(seed);
 	normal_distribution<double> x_noise_dist(0, std_pos[0]);
 	normal_distribution<double> y_noise_dist(0, std_pos[1]);
@@ -62,8 +61,9 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
 	for (auto &p: particles) {
         if (fabs(yaw_rate) < 0.00001) {
-            p.x += velocity*delta_t*cos(p.theta);
-            p.y += velocity*delta_t*sin(p.theta);
+            p.x += velocity*delta_t*cos(p.theta) + x_noise_dist(gen);
+            p.y += velocity*delta_t*sin(p.theta) + y_noise_dist(gen);
+			p.theta += theta_noise_dist(gen);
         } else {
 		    p.x += (velocity / yaw_rate) * (sin(p.theta + yaw_rate*delta_t) - sin(p.theta)) + x_noise_dist(gen);
 		    p.y += (velocity / yaw_rate) * (cos(p.theta) - cos(p.theta + yaw_rate*delta_t)) + y_noise_dist(gen);
@@ -117,22 +117,26 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			obs_y = p.y + (obs.x * sin(p.theta)) + (obs.y * cos(p.theta));
 
 			// Calculate the distances from the observation to each landmark
-			vector<double> distances;
+			// and cache the closest landmark. This is just a basic nearest
+			// neaighbour algorithm.
+			Map::single_landmark_s closest_lm;
+			double min_distance_obs_to_landmark = 1000.0;
+
 			for (int k=0; k<map_landmarks.landmark_list.size(); k++) {
 				Map::single_landmark_s landmark = map_landmarks.landmark_list[k];
 				double map_x = landmark.x_f;
 				double map_y = landmark.y_f;
 				double distance_obs_to_landmark = dist(obs_x, obs_y, map_x, map_y);
-				distances.push_back(distance_obs_to_landmark);
+
+				if (distance_obs_to_landmark <= sensor_range) {
+					if (distance_obs_to_landmark < min_distance_obs_to_landmark) {
+						min_distance_obs_to_landmark = distance_obs_to_landmark;
+						closest_lm = landmark;
+					}
+				}
 			}
 
-			// Find the nearest neighbour - distance and index back into our landmark
-			// to find the match.
-			auto minimum_distance_iter = min_element(begin(distances), end(distances));
-			int index = distance(begin(distances), minimum_distance_iter);
-			Map::single_landmark_s closest_landmark = map_landmarks.landmark_list[index];
-
-			weight *= bivariate_gaussian(closest_landmark, obs_x, obs_y, std_landmark);
+			weight *= bivariate_gaussian(closest_lm, obs_x, obs_y, std_landmark);
 		}
 
 		p.weight = weight;
