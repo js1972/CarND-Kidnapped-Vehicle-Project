@@ -171,12 +171,14 @@ void ParticleFilter::resample() {
     //
     // C++ implementation of Sebastions python wheel-resampling logic - Particle Filters Lesson 20.
 
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    default_random_engine gen(seed);
+    
     // max element returns an iterator - deref with *
     // -> http://stackoverflow.com/questions/10158756/using-stdmax-element-on-a-vectordouble
     double max_weight = *max_element(begin(weights), end(weights));
 
     // get random index
-    default_random_engine gen;
     uniform_int_distribution<int> uniform_int(0, num_particles-1);
     int index = uniform_int(gen);
 
