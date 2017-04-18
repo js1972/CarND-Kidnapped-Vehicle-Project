@@ -173,7 +173,7 @@ void ParticleFilter::resample() {
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     default_random_engine gen(seed);
-    
+
     // max element returns an iterator - deref with *
     // -> http://stackoverflow.com/questions/10158756/using-stdmax-element-on-a-vectordouble
     double max_weight = *max_element(begin(weights), end(weights));
