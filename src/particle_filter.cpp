@@ -136,7 +136,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 				}
 			}
 
-			// Calculate bivariate guassian - this belongs in helper_functions.cpp
+			// Calculate bivariate gaussian - this belongs in helper_functions.cpp
 			// however for Udacity SDC grading the code needs to be inlined here...
 			//weight *= bivariate_gaussian(closest_lm, obs_x, obs_y, std_landmark);
 
