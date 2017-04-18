@@ -110,8 +110,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
             // Convert observation to world/map coordinates
             double obs_x, obs_y;
-            obs_x = p.x + (obs.x * cos(p.theta)) - (obs.y * sin(p.theta));
-            obs_y = p.y + (obs.x * sin(p.theta)) + (obs.y * cos(p.theta));
+            obs_x = p.x + obs.x * cos(p.theta) - obs.y * sin(p.theta);
+            obs_y = p.y + obs.x * sin(p.theta) + obs.y * cos(p.theta);
 
             // Calculate the distances from the observation to each landmark
             // and cache the closest landmark. This is just a basic nearest
