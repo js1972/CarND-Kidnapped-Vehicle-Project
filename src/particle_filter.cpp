@@ -34,11 +34,11 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
     for (int i=0; i<num_particles; i++) {
         Particle p = {
-            i,					//id
-            x_dist(gen),		//x
-            y_dist(gen), 		//y
-            theta_dist(gen), 	//theta
-            1.0					//weight
+            i,                  //id
+            x_dist(gen),        //x
+            y_dist(gen),        //y
+            theta_dist(gen),    //theta
+            1.0                 //weight
         };
         particles.push_back(p);
     }
@@ -180,13 +180,12 @@ void ParticleFilter::resample() {
     uniform_int_distribution<int> uniform_int(0, num_particles-1);
     int index = uniform_int(gen);
 
-    //uniform_real_distribution<double> uniform_real(0.0, 1.0);
+    uniform_real_distribution<double> uniform_real(0.0, 1.0);
 
     double beta = 0.0;
     vector<Particle> resampled_particles;
 
     for (int i=0; i<num_particles; i++) {
-        uniform_real_distribution<double> uniform_real(0.0, 1.0);
         beta += uniform_real(gen) * 2.0 * max_weight;
         while (beta > weights[index]) {
             beta -= weights[index];
