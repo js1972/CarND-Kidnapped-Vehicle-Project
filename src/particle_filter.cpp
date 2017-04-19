@@ -51,29 +51,26 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     default_random_engine gen(seed);
-    normal_distribution<double> x_noise_dist(0, std_pos[0]);
-    normal_distribution<double> y_noise_dist(0, std_pos[1]);
-    normal_distribution<double> theta_noise_dist(0, std_pos[2]);
 
     for (auto &p: particles) {
         if (fabs(yaw_rate) < 0.00001) {
-            p.x += velocity*delta_t*cos(p.theta) + x_noise_dist(gen);
-            p.y += velocity*delta_t*sin(p.theta) + y_noise_dist(gen);
-            p.theta += theta_noise_dist(gen);
+            p.x += velocity*delta_t*cos(p.theta);
+            p.y += velocity*delta_t*sin(p.theta);
         } else {
-            p.x += (velocity / yaw_rate) * (sin(p.theta + yaw_rate*delta_t) - sin(p.theta)) + x_noise_dist(gen);
-            p.y += (velocity / yaw_rate) * (cos(p.theta) - cos(p.theta + yaw_rate*delta_t)) + y_noise_dist(gen);
-            p.theta += yaw_rate*delta_t + theta_noise_dist(gen);
+            p.x += (velocity / yaw_rate) * (sin(p.theta + yaw_rate*delta_t) - sin(p.theta));
+            p.y += (velocity / yaw_rate) * (cos(p.theta) - cos(p.theta + yaw_rate*delta_t));
+            p.theta += yaw_rate*delta_t;
         }
-    }
 
-    // Visualisation code for debugging:
-    //debug_iteration += 1;
-    //cout << "DEBUG ITER: " << debug_iteration << endl;
-    //if (debug_iteration == 100) {
-    //	cout << "Output particles at step 100 for debug" << endl;
-    //	debug_output_particles(particles);
-    //}
+        normal_distribution<double> dist_x(p.x, std_pos[0]);
+        normal_distribution<double> dist_y(p.y, std_pos[1]);
+        normal_distribution<double> dist_theta(p.theta, std_pos[2]);
+
+        // set noisy prediction
+        p.x = dist_x(gen);
+        p.y = dist_y(gen);
+        p.theta = dist_theta(gen);
+    }
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
@@ -116,16 +113,20 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             // Calculate the distances from the observation to each landmark
             // and cache the closest landmark. This is just a basic nearest
             // neighbour algorithm.
-            Map::single_landmark_s closest_lm;
+            Map::single_landmark_s closest_lm = {0, 0.0, 0.0};
             double min_distance_obs_to_landmark = 1000.0;
 
             for (int k=0; k<map_landmarks.landmark_list.size(); k++) {
                 Map::single_landmark_s landmark = map_landmarks.landmark_list[k];
-                double map_x = landmark.x_f;
-                double map_y = landmark.y_f;
-                double distance_obs_to_landmark = dist(obs_x, obs_y, map_x, map_y);
+                double landmark_x = landmark.x_f;
+                double landmark_y = landmark.y_f;
 
-                if (distance_obs_to_landmark <= sensor_range) {
+                //double distance_obs_to_landmark = dist(obs_x, obs_y, map_x, map_y);
+                double distance_particle_to_landmark = dist(p.x, p.y, landmark_x, landmark_y);
+
+                if (distance_particle_to_landmark <= sensor_range) {
+                    double distance_obs_to_landmark = dist(obs_x, obs_y, landmark_x, landmark_y);
+
                     if (distance_obs_to_landmark < min_distance_obs_to_landmark) {
                         min_distance_obs_to_landmark = distance_obs_to_landmark;
                         closest_lm = landmark;
@@ -145,8 +146,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             double std_y = std_landmark[1];
 
             double x_y_term = ((x_range*x_range)/(std_x*std_x)) + ((y_range*y_range)/(std_y*std_y));
-            double w = exp(-0.5*x_y_term) / (2*M_PI*std_x*std_y);
+            long double w = exp(-0.5*x_y_term) / (2*M_PI*std_x*std_y);
 
+            if (w < 0.0001) {
+                w = 0.0001;
+            }
             weight *= w;
         }
 
@@ -203,9 +207,10 @@ void ParticleFilter::resample() {
 void ParticleFilter::write(std::string filename) {
     // You don't need to modify this file.
     std::ofstream dataFile;
-    dataFile.open(filename, std::ios::app);
+    //dataFile.open(filename, std::ios::app);
+    dataFile.open(filename, std::ios::trunc);
     for (int i = 0; i < num_particles; ++i) {
-        dataFile << particles[i].x << " " << particles[i].y << " " << particles[i].theta << "\n";
+        dataFile << particles[i].x << " " << particles[i].y << " " << particles[i].theta << " " << particles[i].weight << "\n";
     }
     dataFile.close();
 }

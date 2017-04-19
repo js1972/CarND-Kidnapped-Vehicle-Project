@@ -23,6 +23,7 @@
         "memory": "cpp",
         "chrono": "cpp",
         "map": "cpp",
-        "numeric": "cpp"
+        "numeric": "cpp",
+        "ostream": "cpp"
     }
 }
