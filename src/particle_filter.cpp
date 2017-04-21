@@ -12,10 +12,14 @@
 #include <time.h>
 #include <map>
 #include <cctype>
+#include "Eigen/Dense"
 
 #include "particle_filter.h"
 
 using namespace std;
+using Eigen::MatrixXd;
+using Eigen::VectorXd;
+
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
     // Set the number of particles. Initialize all particles to first position (based on estimates of
@@ -97,6 +101,18 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     //   for the fact that the map's y-axis actually points downwards.)
     //   http://planning.cs.uiuc.edu/node99.html
 
+
+    // Initialise vectors and measurement covariance matrix for the 
+    // multi-variate gaussian used to calculate the weights below...
+    // NOTE: Use static matrix declarations for better eigen performance.
+    Eigen::Vector2d x = Eigen::Vector2d();
+    Eigen::Vector2d mu = Eigen::Vector2d();
+    Eigen::Matrix2d measurementCovariance = Eigen::Matrix2d();
+    measurementCovariance << std_landmark[0] * std_landmark[0] , 0, 0, std_landmark[1] * std_landmark[1];
+    Eigen::Matrix2d c2 = 2.0 * M_PI * measurementCovariance;
+    double c3 = sqrt(c2.determinant());
+
+
     for (int i=0; i<num_particles; i++) {
         Particle &p = particles[i];
 
@@ -134,19 +150,10 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
                 }
             }
 
-            // Calculate bivariate gaussian - this belongs in helper_functions.cpp
-            // however for Udacity SDC grading the code needs to be inlined here...
-            //weight *= bivariate_gaussian(closest_lm, obs_x, obs_y, std_landmark);
-
-            double map_x = closest_lm.x_f;
-            double map_y = closest_lm.y_f;
-            double x_range = map_x - obs_x;
-            double y_range = map_y - obs_y;
-            double std_x = std_landmark[0];
-            double std_y = std_landmark[1];
-
-            double x_y_term = ((x_range*x_range)/(std_x*std_x)) + ((y_range*y_range)/(std_y*std_y));
-            long double w = exp(-0.5*x_y_term) / (2*M_PI*std_x*std_y);
+            // Multi-variate gaussian distribution calculation using eigen
+            x << obs_x, obs_y;
+            mu << closest_lm.x_f, closest_lm.y_f;
+            double w = exp(-double(0.5 * (x - mu).transpose() * measurementCovariance.inverse() * (x - mu))) / c3;
 
             if (w < 0.0001) {
                 w = 0.0001;
