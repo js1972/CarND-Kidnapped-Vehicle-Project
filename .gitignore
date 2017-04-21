@@ -13,4 +13,4 @@ src/solutions
 .ipynb_checkpoints
 
 debug_particles_output.txt
-output/
+output
