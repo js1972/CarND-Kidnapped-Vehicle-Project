@@ -178,30 +178,41 @@ void ParticleFilter::resample() {
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     default_random_engine gen(seed);
 
-    // max element returns an iterator - deref with *
-    // -> http://stackoverflow.com/questions/10158756/using-stdmax-element-on-a-vectordouble
-    double max_weight = *max_element(begin(weights), end(weights));
-
-    // get random index
-    uniform_int_distribution<int> uniform_int(0, num_particles-1);
-    int index = uniform_int(gen);
-
-    uniform_real_distribution<double> uniform_real(0.0, 1.0);
-
-    double beta = 0.0;
+    std::discrete_distribution<> d(weights.begin(), weights.end());
     vector<Particle> resampled_particles;
 
     for (int i=0; i<num_particles; i++) {
-        beta += uniform_real(gen) * 2.0 * max_weight;
-        while (beta > weights[index]) {
-            beta -= weights[index];
-            index = (index + 1) % num_particles;
-        }
-
+        int index = d(gen);
         resampled_particles.push_back(particles[index]);
     }
 
     particles = resampled_particles;
+
+
+    // // max element returns an iterator - deref with *
+    // // -> http://stackoverflow.com/questions/10158756/using-stdmax-element-on-a-vectordouble
+    // double max_weight = *max_element(begin(weights), end(weights));
+
+    // // get random index
+    // uniform_int_distribution<int> uniform_int(0, num_particles-1);
+    // int index = uniform_int(gen);
+
+    // uniform_real_distribution<double> uniform_real(0.0, 1.0);
+
+    // double beta = 0.0;
+    // vector<Particle> resampled_particles;
+
+    // for (int i=0; i<num_particles; i++) {
+    //     beta += uniform_real(gen) * 2.0 * max_weight;
+    //     while (beta > weights[index]) {
+    //         beta -= weights[index];
+    //         index = (index + 1) % num_particles;
+    //     }
+
+    //     resampled_particles.push_back(particles[index]);
+    // }
+
+    // particles = resampled_particles;
 }
 
 void ParticleFilter::write(std::string filename) {
